@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Financiero Integral</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { dark: '#111827', red: '#DC2626', light: '#F9FAFB' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header y Navegación por Pestañas -->
+    <header class="bg-gray-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h1 class="text-xl font-bold tracking-wider">CONTROL FINANCIERO INTEGRAL</h1>
+            
+            <div class="flex items-center gap-3">
+                <div class="bg-gray-800 p-1 rounded-lg flex space-x-1">
+                    <button onclick="cambiarPestaña('principal')" id="tabPrincipal" class="px-3 py-1.5 rounded-md text-xs font-semibold transition bg-red-600 text-white shadow">
+                        📊 Finanzas Principales
+                    </button>
+                    <button onclick="cambiarPestaña('prestamos')" id="tabPrestamos" class="px-3 py-1.5 rounded-md text-xs font-semibold transition text-gray-300 hover:text-white">
+                        🤝 Préstamos y Deudas
+                    </button>
+                </div>
+
+                <button onclick="cargarDatos()" id="btnSinc" class="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 border border-gray-700">
+                    🔄 Sincronizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Spinner de Carga -->
+    <div id="loading" class="fixed inset-0 bg-black/30 backdrop-blur-xs z-50 flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-xl flex items-center space-x-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-4 border-red-600 border-t-transparent"></div>
+            <p class="text-gray-700 font-semibold text-sm">Sincronizando con Google Sheets...</p>
+        </div>
+    </div>
+
+    <!-- Layout Principal -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- ================= PESTAÑA PRINCIPAL ================= -->
+        <div id="vistaPrincipal" class="lg:col-span-2 space-y-8">
+
+            <div class="flex flex-wrap gap-2.5">
+                <button onclick="abrirModalTransaccion('INGRESO')" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-lg shadow transition text-sm flex-1 sm:flex-none">
+                    + Registrar Ingreso
+                </button>
+                <button onclick="abrirModalTransaccion('GASTO')" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-lg shadow transition text-sm flex-1 sm:flex-none">
+                    - Gasto Común
+                </button>
+                <button onclick="abrirModalGastoFijo()" class="bg-gray-800 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-lg shadow transition text-sm flex-1 sm:flex-none">
+                    + Gasto Fijo
+                </button>
+            </div>
+
+            <!-- BLOQUE: GASTOS FIJOS -->
+            <section>
+                <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    📌 Gastos Fijos y Obligaciones Recurrentes
+                </h2>
+                <div id="contenedorGastosFijos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+
+            <!-- BLOQUE: MOVIMIENTOS OPTIMIZADOS -->
+            <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h2 id="tituloTablaMovimientos" class="text-lg font-bold text-gray-800">Movimientos del Día</h2>
+                        <p id="subtituloTablaMovimientos" class="text-xs text-gray-500">Visualizando detalle exacto</p>
+                    </div>
+                    <button id="btnVolverVistaGeneral" onclick="resetearVistaTabla()" class="hidden text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg transition">
+                        ← Volver a Resumen General
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr id="cabeceraTabla" class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider border-b border-gray-200">
+                                <th class="p-3">Fecha</th>
+                                <th class="p-3">Tipo</th>
+                                <th class="p-3">Categoría</th>
+                                <th class="p-3">Descripción</th>
+                                <th class="p-3 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaMovimientos" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ================= PESTAÑA PRÉSTAMOS (DIVIDIDA EN DOS COLUMNAS) ================= -->
+        <div id="vistaPrestamos" class="lg:col-span-2 space-y-6 hidden">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-900">🤝 Gestión de Préstamos y Deudas</h2>
+                <button onclick="abrirModalPrestamo()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-lg shadow transition text-sm">
+                    + Nuevo Préstamo
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Columna Izquierda: Cuentas por Cobrar -->
+                <div class="bg-green-50/50 p-4 rounded-2xl border border-green-200 space-y-4">
+                    <div class="flex items-center justify-between border-b border-green-200 pb-2">
+                        <h3 class="font-bold text-green-800 text-sm flex items-center gap-1.5">
+                            🟢 Cuentas por Cobrar (Me deben)
+                        </h3>
+                        <span id="badgeTotalCobrar" class="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-bold">$ 0</span>
+                    </div>
+                    <div id="contenedorPorCobrar" class="space-y-3"></div>
+                </div>
+
+                <!-- Columna Derecha: Cuentas por Pagar -->
+                <div class="bg-red-50/50 p-4 rounded-2xl border border-red-200 space-y-4">
+                    <div class="flex items-center justify-between border-b border-red-200 pb-2">
+                        <h3 class="font-bold text-red-800 text-sm flex items-center gap-1.5">
+                            🔴 Cuentas por Pagar (Debo)
+                        </h3>
+                        <span id="badgeTotalPagar" class="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full font-bold">$ 0</span>
+                    </div>
+                    <div id="contenedorPorPagar" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANEL LATERAL DE BALANCES ================= -->
+        <aside id="panelBalances" class="space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24 space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 tracking-wide">📊 Balances Financieros</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Resumen analítico adaptativo</p>
+                </div>
+
+                <div class="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Ver Balance Por:</label>
+                        <select id="modoBalance" onchange="cambiarModoBalance()" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white font-semibold text-gray-700">
+                            <option value="DIA" selected>📅 POR DÍA</option>
+                            <option value="MES">🗓️ POR MES</option>
+                            <option value="ANIO">📊 POR AÑO</option>
+                        </select>
+                    </div>
+                    <div id="contenedorSelectorFecha"></div>
+                </div>
+
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-5 rounded-xl shadow-md space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span id="lblTituloTarjeta" class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Balance Diario</span>
+                        <span id="badgeModo" class="text-xs bg-blue-600/30 text-blue-400 px-2 py-0.5 rounded font-medium">DÍA</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Total Ingresos:</span>
+                            <span id="lblIngresos" class="text-green-400 font-semibold">$ 0</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Total Gastos:</span>
+                            <span id="lblGastos" class="text-red-400 font-semibold">$ 0</span>
+                        </div>
+                        <div class="pt-2 border-t border-gray-700 flex justify-between items-center font-bold">
+                            <span>Resultado Neto:</span>
+                            <span id="lblNeto" class="text-lg">$ 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- ================= MODALES ================= -->
+    <!-- Modal Transacción -->
+    <div id="modalTransaccion" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="tituloModalTx" class="text-lg font-bold text-gray-900">Registrar Transacción</h3>
+            <form id="formTx" onsubmit="enviarTransaccion(event)" class="space-y-3">
+                <input type="hidden" id="editTxId">
+                <input type="hidden" id="txTipo">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fecha</label>
+                    <input type="date" id="txFecha" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Categoría</label>
+                    <input type="text" id="txCategoria" required oninput="forzarMayusculas(this)" placeholder="EJ. VENTAS, SERVICIOS..." class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descripción</label>
+                    <input type="text" id="txDescripcion" required oninput="forzarMayusculas(this)" placeholder="EJ. PAGO DE CLIENTE" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Monto ($)</label>
+                    <input type="number" id="txMonto" required step="any" placeholder="50000" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Método de Pago</label>
+                    <select id="txMetodo" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                        <option value="EFECTIVO">EFECTIVO</option>
+                        <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                        <option value="TARJETA">TARJETA</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Gasto Fijo -->
+    <div id="modalGastoFijo" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="tituloModalGF" class="text-lg font-bold text-gray-900">Nuevo Gasto Fijo / Obligación</h3>
+            <form id="formGastoFijo" onsubmit="guardarGastoFijo(event)" class="space-y-3">
+                <input type="hidden" id="editGfId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Título del Gasto</label>
+                    <input type="text" id="gfTitulo" required oninput="forzarMayusculas(this)" placeholder="EJ. ARRIENDO O INTERNET" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Monto Objetivo / Estimado ($)</label>
+                    <input type="number" id="gfMonto" required step="any" placeholder="60000" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Día de Pago del Mes (1 al 31)</label>
+                    <select id="gfDia" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white font-semibold text-gray-700">
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Pagar Gasto Fijo -->
+    <div id="modalPagarGF" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <h3 class="text-lg font-bold text-gray-900">Confirmar Pago de Obligación</h3>
+            <form onsubmit="ejecutarPagoTotalGF(event)" class="space-y-3">
+                <input type="hidden" id="pagarGfId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">¿Cómo realizaste el pago?</label>
+                    <select id="pagarGfMetodo" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase font-semibold text-gray-700">
+                        <option value="EFECTIVO">💵 EFECTIVO</option>
+                        <option value="TRANSFERENCIA">🏦 TRANSFERENCIA</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Confirmar Pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Operación Gasto Fijo -->
+    <div id="modalOperacionGF" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <h3 id="tituloOpGF" class="text-lg font-bold text-gray-900">Operación</h3>
+            <form onsubmit="ejecutarOperacionGF(event)" class="space-y-3">
+                <input type="hidden" id="opGFId">
+                <input type="hidden" id="opGFAccion">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1" id="lblMontoOpGF">Monto ($)</label>
+                    <input type="number" id="opGFMonto" required step="any" placeholder="10000" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nota (Opcional)</label>
+                    <input type="text" id="opGFNota" oninput="forzarMayusculas(this)" placeholder="EJ. ABONO QUINCENA" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Préstamo (Nuevo y Editar) -->
+    <div id="modalPrestamo" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="tituloModalPrestamo" class="text-lg font-bold text-gray-900">Nuevo Préstamo o Deuda</h3>
+            <form id="formPrestamo" onsubmit="guardarPrestamo(event)" class="space-y-3">
+                <input type="hidden" id="editPrestamoId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tipo de Préstamo</label>
+                    <select id="prTipo" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase font-semibold text-gray-700">
+                        <option value="POR_COBRAR">🟢 ME DEBEN (CUENTA POR COBRAR)</option>
+                        <option value="POR_PAGAR">🔴 DEBO (CUENTA POR PAGAR)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nombre (Deudor o Acreedor)</label>
+                    <input type="text" id="prNombre" required oninput="forzarMayusculas(this)" placeholder="EJ. JUAN PÉREZ" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descripción / Motivo</label>
+                    <input type="text" id="prDescripcion" required oninput="forzarMayusculas(this)" placeholder="EJ. PRESTAMO PARA HERRAMIENTAS" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Monto Total ($)</label>
+                    <input type="number" id="prMonto" required step="any" placeholder="100000" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fecha Límite (Opcional)</label>
+                    <input type="date" id="prFechaLimite" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm uppercase">
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Guardar Préstamo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Abonar Préstamo -->
+    <div id="modalAbonarPrestamo" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <h3 id="tituloOpPrestamo" class="text-lg font-bold text-gray-900">Abonar a Préstamo</h3>
+            <form onsubmit="ejecutarAbonoPrestamo(event)" class="space-y-3">
+                <input type="hidden" id="opPrestamoId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Monto del Abono ($)</label>
+                    <input type="number" id="opPrestamoMonto" required step="any" placeholder="50000" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="cerrarModales()" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Confirmar Abono</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPT PRINCIPAL ================= -->
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbx3Kz0K_GCRCw10Rjpf5NtuzPD9MFltTzhYWyXn5jfpDdiR6yxIxXmWyfVtL0znsk08vw/exec";
+        
+        let datosGlobales = {
+            ingresos_gastos: [],
+            gastos_fijos: [],
+            historial: [],
+            prestamos: []
+        };
+
+        let diaSeleccionadoDesglose = null;
+
+        function forzarMayusculas(input) {
+            input.value = input.value.toUpperCase();
+        }
+
+        function formatearMoneda(monto) {
+            return "$ " + Number(monto || 0).toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatearFecha(fechaStr) {
+            if(!fechaStr) return "";
+            let soloFecha = String(fechaStr).split('T')[0];
+            let partes = soloFecha.split('-');
+            if(partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return soloFecha;
+        }
+
+        window.onload = function() {
+            let hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('txFecha').value = hoy;
+            
+            let selectDia = document.getElementById('gfDia');
+            selectDia.innerHTML = "";
+            for(let d = 1; d <= 31; d++) {
+                let opt = document.createElement('option');
+                opt.value = d;
+                opt.innerText = `Los ${d} de cada mes`;
+                selectDia.appendChild(opt);
+            }
+
+            inicializarSelectorFecha();
+            cargarDatos();
+        };
+
+        function cambiarPestaña(pestana) {
+            let vPrin = document.getElementById('vistaPrincipal');
+            let vPres = document.getElementById('vistaPrestamos');
+            let tPrin = document.getElementById('tabPrincipal');
+            let tPres = document.getElementById('tabPrestamos');
+            let panelBal = document.getElementById('panelBalances');
+
+            if(pestana === 'principal') {
+                vPrin.classList.remove('hidden');
+                vPres.classList.add('hidden');
+                panelBal.classList.remove('hidden');
+                tPrin.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition bg-red-600 text-white shadow";
+                tPres.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition text-gray-300 hover:text-white";
+            } else {
+                vPrin.classList.add('hidden');
+                vPres.classList.remove('hidden');
+                panelBal.classList.add('hidden');
+                tPres.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition bg-blue-600 text-white shadow";
+                tPrin.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition text-gray-300 hover:text-white";
+            }
+        }
+
+        function inicializarSelectorFecha() {
+            let hoy = new Date().toISOString().split('T')[0];
+            let anioActual = new Date().getFullYear();
+            let contenedor = document.getElementById('contenedorSelectorFecha');
+            let modo = document.getElementById('modoBalance').value;
+
+            diaSeleccionadoDesglose = null;
+
+            if(modo === "DIA") {
+                contenedor.innerHTML = `
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Seleccionar Día</label>
+                    <input type="date" id="filtroFechaUnica" value="${hoy}" onchange="renderizarTodo()" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white">
+                `;
+            } else if(modo === "MES") {
+                let mesActual = hoy.substring(0, 7);
+                contenedor.innerHTML = `
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Seleccionar Mes</label>
+                    <input type="month" id="filtroMes" value="${mesActual}" onchange="renderizarTodo()" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white">
+                `;
+            } else if(modo === "ANIO") {
+                contenedor.innerHTML = `
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Año</label>
+                    <input type="number" id="filtroAnio" value="${anioActual}" onchange="renderizarTodo()" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white">
+                `;
+            }
+            renderizarTodo();
+        }
+
+        function cambiarModoBalance() {
+            inicializarSelectorFecha();
+        }
+
+        function cargarDatos() {
+            document.getElementById('loading').classList.remove('hidden');
+            fetch(API_URL + "?action=obtenerTodo")
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === "success") {
+                        datosGlobales.ingresos_gastos = data.ingresos_gastos || [];
+                        datosGlobales.gastos_fijos = data.gastos_fijos || [];
+                        datosGlobales.historial = data.historial || [];
+                        datosGlobales.prestamos = data.prestamos || [];
+                        renderizarTodo();
+                    } else {
+                        alert("Error al cargar datos: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error de conexión con la hoja.");
+                })
+                .finally(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                });
+        }
+
+        function renderizarTodo() {
+            renderizarBalanceDinamico();
+            renderizarGastosFijos();
+            renderizarPrestamos();
+            renderizarTablaMovimientos();
+        }
+
+        function renderizarBalanceDinamico() {
+            let filas = datosGlobales.ingresos_gastos.slice(1);
+            let modo = document.getElementById('modoBalance').value;
+            let ingresos = 0, gastos = 0;
+            let tituloTarjeta = "Balance General";
+            let badgeTexto = modo;
+
+            if(modo === "DIA") {
+                let inputDia = document.getElementById('filtroFechaUnica');
+                let fechaSeleccionada = inputDia ? inputDia.value : new Date().toISOString().split('T')[0];
+                tituloTarjeta = `Balance del Día (${formatearFecha(fechaSeleccionada)})`;
+
+                filas.forEach(fila => {
+                    let fechaTx = String(fila[1]).split('T')[0];
+                    if(fechaTx === fechaSeleccionada) {
+                        if(fila[2] === "INGRESO") ingresos += parseFloat(fila[5]) || 0;
+                        if(fila[2] === "GASTO") gastos += parseFloat(fila[5]) || 0;
+                    }
+                });
+            } else if(modo === "MES") {
+                let inputMes = document.getElementById('filtroMes');
+                let mesSeleccionado = inputMes ? inputMes.value : new Date().toISOString().substring(0, 7);
+                tituloTarjeta = `Balance del Mes (${mesSeleccionado})`;
+
+                filas.forEach(fila => {
+                    let fechaTx = String(fila[1]).split('T')[0];
+                    if(fechaTx.startsWith(mesSeleccionado)) {
+                        if(fila[2] === "INGRESO") ingresos += parseFloat(fila[5]) || 0;
+                        if(fila[2] === "GASTO") gastos += parseFloat(fila[5]) || 0;
+                    }
+                });
+            } else if(modo === "ANIO") {
+                let inputAnio = document.getElementById('filtroAnio');
+                let anioSeleccionado = inputAnio ? inputAnio.value : new Date().getFullYear().toString();
+                tituloTarjeta = `Consolidado Año ${anioSeleccionado}`;
+
+                filas.forEach(fila => {
+                    let fechaTx = String(fila[1]).split('T')[0];
+                    if(fechaTx.startsWith(anioSeleccionado)) {
+                        if(fila[2] === "INGRESO") ingresos += parseFloat(fila[5]) || 0;
+                        if(fila[2] === "GASTO") gastos += parseFloat(fila[5]) || 0;
+                    }
+                });
+            }
+
+            document.getElementById('lblTituloTarjeta').innerText = tituloTarjeta;
+            document.getElementById('badgeModo').innerText = badgeTexto;
+            document.getElementById('lblIngresos').innerText = formatearMoneda(ingresos);
+            document.getElementById('lblGastos').innerText = formatearMoneda(gastos);
+
+            let neto = ingresos - gastos;
+            let lblNeto = document.getElementById('lblNeto');
+            lblNeto.innerText = formatearMoneda(neto);
+            lblNeto.className = "text-lg font-bold " + (neto >= 0 ? "text-green-400" : "text-red-400");
+        }
+
+        function renderizarTablaMovimientos() {
+            let tbody = document.getElementById('tablaMovimientos');
+            let cabecera = document.getElementById('cabeceraTabla');
+            let titulo = document.getElementById('tituloTablaMovimientos');
+            let subtitulo = document.getElementById('subtituloTablaMovimientos');
+            let btnVolver = document.getElementById('btnVolverVistaGeneral');
+            
+            tbody.innerHTML = "";
+            let filas = datosGlobales.ingresos_gastos.slice(1);
+            let modo = document.getElementById('modoBalance').value;
+
+            if(diaSeleccionadoDesglose) {
+                titulo.innerText = `Desglose de Movimientos: ${formatearFecha(diaSeleccionadoDesglose)}`;
+                subtitulo.innerText = `Mostrando transacciones individuales del día (Puedes editar o eliminar)`;
+                btnVolver.classList.remove('hidden');
+
+                cabecera.innerHTML = `
+                    <th class="p-3">Fecha</th>
+                    <th class="p-3">Tipo</th>
+                    <th class="p-3">Categoría</th>
+                    <th class="p-3">Descripción</th>
+                    <th class="p-3 text-right">Monto</th>
+                    <th class="p-3 text-center">Acciones</th>
+                `;
+
+                let filtradas = filas.filter(f => String(f[1]).split('T')[0] === diaSeleccionadoDesglose).reverse();
+
+                if(filtradas.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400 italic">No hay movimientos en este día.</td></tr>`;
+                    return;
+                }
+
+                filtradas.forEach(fila => {
+                    let tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 border-b border-gray-100 text-xs";
+                    let colorTipo = fila[2] === 'INGRESO' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
+                    let fechaLimpieza = String(fila[1]).split('T')[0];
+
+                    tr.innerHTML = `
+                        <td class="p-3 text-gray-600">${formatearFecha(fechaLimpieza)}</td>
+                        <td class="p-3 ${colorTipo}">${fila[2]}</td>
+                        <td class="p-3 uppercase text-gray-700">${fila[3]}</td>
+                        <td class="p-3 uppercase text-gray-800">${fila[4]}</td>
+                        <td class="p-3 text-right font-bold text-gray-900">${formatearMoneda(fila[5])}</td>
+                        <td class="p-3 text-center space-x-1">
+                            <button onclick="abrirModalEditarTransaccion('${fila[0]}', '${fechaLimpieza}', '${fila[2]}', '${fila[3]}', '${fila[4]}', ${fila[5]}, '${fila[6]}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-2 py-1 rounded text-[10px]" title="Editar">✏️</button>
+                            <button onclick="eliminarTransaccion('${fila[0]}')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2 py-1 rounded text-[10px]" title="Eliminar">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                return;
+            }
+
+            btnVolver.classList.add('hidden');
+
+            if(modo === "DIA") {
+                let fechaDia = document.getElementById('filtroFechaUnica').value;
+                titulo.innerText = `Movimientos del Día (${formatearFecha(fechaDia)})`;
+                subtitulo.innerText = `Transacciones registradas en la fecha`;
+
+                cabecera.innerHTML = `
+                    <th class="p-3">Fecha</th>
+                    <th class="p-3">Tipo</th>
+                    <th class="p-3">Categoría</th>
+                    <th class="p-3">Descripción</th>
+                    <th class="p-3 text-right">Monto</th>
+                    <th class="p-3 text-center">Acciones</th>
+                `;
+
+                let filtradas = filas.filter(f => String(f[1]).split('T')[0] === fechaDia).reverse();
+
+                if(filtradas.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400 italic">No hay movimientos en este día.</td></tr>`;
+                    return;
+                }
+
+                filtradas.forEach(fila => {
+                    let tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 border-b border-gray-100 text-xs";
+                    let colorTipo = fila[2] === 'INGRESO' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
+                    let fechaLimpieza = String(fila[1]).split('T')[0];
+
+                    tr.innerHTML = `
+                        <td class="p-3 text-gray-600">${formatearFecha(fechaLimpieza)}</td>
+                        <td class="p-3 ${colorTipo}">${fila[2]}</td>
+                        <td class="p-3 uppercase text-gray-700">${fila[3]}</td>
+                        <td class="p-3 uppercase text-gray-800">${fila[4]}</td>
+                        <td class="p-3 text-right font-bold text-gray-900">${formatearMoneda(fila[5])}</td>
+                        <td class="p-3 text-center space-x-1">
+                            <button onclick="abrirModalEditarTransaccion('${fila[0]}', '${fechaLimpieza}', '${fila[2]}', '${fila[3]}', '${fila[4]}', ${fila[5]}, '${fila[6]}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-2 py-1 rounded text-[10px]" title="Editar">✏️</button>
+                            <button onclick="eliminarTransaccion('${fila[0]}')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2 py-1 rounded text-[10px]" title="Eliminar">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                let periodoFiltro = modo === "MES" ? document.getElementById('filtroMes').value : document.getElementById('filtroAnio').value;
+                titulo.innerText = `Resumen por Días (${periodoFiltro})`;
+                subtitulo.innerText = `Haz clic en cualquier día para ver su desglose detallado`;
+
+                cabecera.innerHTML = `
+                    <th class="p-3">Fecha (Día)</th>
+                    <th class="p-3 text-right text-green-600">Ingresos del Día</th>
+                    <th class="p-3 text-right text-red-600">Gastos del Día</th>
+                    <th class="p-3 text-right">Neto Diario</th>
+                    <th class="p-3 text-center">Acción</th>
+                `;
+
+                let agrupados = {};
+                filas.forEach(fila => {
+                    let fechaTx = String(fila[1]).split('T')[0];
+                    if(fechaTx.startsWith(periodoFiltro)) {
+                        if(!agrupados[fechaTx]) agrupados[fechaTx] = { ing: 0, gas: 0 };
+                        let monto = parseFloat(fila[5]) || 0;
+                        if(fila[2] === "INGRESO") agrupados[fechaTx].ing += monto;
+                        if(fila[2] === "GASTO") agrupados[fechaTx].gas += monto;
+                    }
+                });
+
+                let fechasOrdenadas = Object.keys(agrupados).sort().reverse();
+
+                if(fechasOrdenadas.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">No hay movimientos en este periodo.</td></tr>`;
+                    return;
+                }
+
+                fechasOrdenadas.forEach(fec => {
+                    let item = agrupados[fec];
+                    let netoDia = item.ing - item.gas;
+                    let tr = document.createElement('tr');
+                    tr.className = "hover:bg-blue-50/50 border-b border-gray-100 text-xs cursor-pointer transition";
+                    tr.onclick = () => verDesgloseDia(fec);
+
+                    tr.innerHTML = `
+                        <td class="p-3 font-bold text-gray-800">${formatearFecha(fec)}</td>
+                        <td class="p-3 text-right font-semibold text-green-600">${formatearMoneda(item.ing)}</td>
+                        <td class="p-3 text-right font-semibold text-red-600">${formatearMoneda(item.gas)}</td>
+                        <td class="p-3 text-right font-bold ${netoDia >= 0 ? 'text-gray-900' : 'text-red-600'}">${formatearMoneda(netoDia)}</td>
+                        <td class="p-3 text-center">
+                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold">Ver Desglose →</span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function verDesgloseDia(fechaStr) {
+            diaSeleccionadoDesglose = fechaStr;
+            renderizarTablaMovimientos();
+        }
+
+        function resetearVistaTabla() {
+            diaSeleccionadoDesglose = null;
+            renderizarTablaMovimientos();
+        }
+
+        function eliminarTransaccion(id) {
+            if(!confirm("¿Estás seguro de eliminar este movimiento?")) return;
+            ejecutarFetch({ action: "eliminarTransaccion", id: id });
+        }
+
+        // --- RENDER GASTOS FIJOS ---
+        function renderizarGastosFijos() {
+            let contenedor = document.getElementById('contenedorGastosFijos');
+            contenedor.innerHTML = "";
+            let filas = datosGlobales.gastos_fijos.slice(1);
+
+            if(filas.length === 0) {
+                contenedor.innerHTML = `<p class="text-gray-400 text-sm italic col-span-full">No hay gastos fijos registrados.</p>`;
+                return;
+            }
+
+            let hoy = new Date();
+            let anioActual = hoy.getFullYear();
+            let mesActual = hoy.getMonth();
+            let diaHoy = hoy.getDate();
+
+            filas.forEach(fila => {
+                let id = fila[0], titulo = fila[1], objetivo = parseFloat(fila[2]) || 0, actual = parseFloat(fila[3]) || 0, diaPago = parseInt(fila[4], 10) || 1, estado = String(fila[5]).trim().toUpperCase();
+                let fechaUltimoPagoStr = fila[6] ? String(fila[6]).split('T')[0] : "";
+
+                if (estado === 'PAGADO' && fechaUltimoPagoStr) {
+                    let partesPago = fechaUltimoPagoStr.split('-');
+                    if (partesPago.length === 3) {
+                        let anioPago = parseInt(partesPago[0], 10);
+                        let mesPago = parseInt(partesPago[1], 10) - 1;
+                        if (diaHoy > diaPago) {
+                            let fechaCorteActual = new Date(anioActual, mesActual, diaPago);
+                            let fechaPagoObj = new Date(anioPago, mesPago, diaPago);
+                            if (fechaPagoObj.getTime() < fechaCorteActual.getTime()) {
+                                estado = 'PENDIENTE';
+                            }
+                        }
+                    }
+                }
+
+                let porcentajeMeta = objetivo > 0 ? Math.min(Math.round((actual / objetivo) * 100), 100) : 0;
+                let colorBarraMeta = estado === 'PAGADO' ? 'bg-green-500' : 'bg-red-600';
+
+                let fechaPagoObj = new Date(anioActual, mesActual, diaPago);
+                let diferenciaTiempo = hoy.getTime() - fechaPagoObj.getTime();
+                let diferenciaDias = Math.floor(diferenciaTiempo / (1000 * 3600 * 24)); 
+
+                let diasRestantesOFaltantes = Math.abs(diferenciaDias);
+                let estaRetrasado = (diferenciaDias > 0 && estado !== 'PAGADO');
+
+                let borderColor = "border-green-400";
+                let barraEstadoTexto = "";
+
+                if (estado === 'PAGADO') {
+                    borderColor = "border-green-500 bg-green-50/10";
+                    barraEstadoTexto = "¡Pagado este mes!";
+                } else if (estaRetrasado) {
+                    borderColor = "border-red-600 shadow-md shadow-red-200 ring-2 ring-red-400/50";
+                    barraEstadoTexto = `⚠️ ¡RETRASADO! -${diasRestantesOFaltantes} ${diasRestantesOFaltantes === 1 ? 'día' : 'días'}`;
+                } else if (diferenciaDias === 0 || diferenciaDias >= -2) {
+                    borderColor = "border-red-500 shadow-sm shadow-red-100";
+                    barraEstadoTexto = diferenciaDias === 0 ? "¡Es hoy el pago!" : `Faltan ${diasRestantesOFaltantes} días`;
+                } else if (diferenciaDias >= -5) {
+                    borderColor = "border-amber-400";
+                    barraEstadoTexto = `Faltan ${diasRestantesOFaltantes} días`;
+                } else {
+                    barraEstadoTexto = `Faltan ${diasRestantesOFaltantes} días`;
+                }
+
+                let porcentajeTiempo = Math.min(Math.max(Math.round((diaHoy / diaPago) * 100), 0), 100);
+                if(diaHoy >= diaPago || estado === 'PAGADO') porcentajeTiempo = 100;
+
+                let card = document.createElement('div');
+                card.className = `bg-white p-4 rounded-xl border-2 ${borderColor} flex flex-col justify-between space-y-3 transition-all`;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-gray-900 text-sm">${titulo}</h3>
+                            <div class="flex items-center gap-1">
+                                <button onclick="abrirModalEditarGastoFijo('${id}', '${titulo}', ${objetivo}, ${diaPago})" class="text-gray-400 hover:text-blue-600 text-xs p-1" title="Editar">✏️</button>
+                                <button onclick="eliminarGastoFijo('${id}', '${titulo}')" class="text-gray-400 hover:text-red-600 text-xs p-1" title="Eliminar">🗑️</button>
+                                <span class="text-[10px] px-2 py-0.5 rounded font-semibold ${estado === 'PAGADO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${estado}</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-600 font-semibold mt-0.5">📅 Pago programado: Los ${diaPago} de cada mes</p>
+                    </div>
+
+                    <div class="space-y-0.5 ${estado === 'PAGADO' ? 'bg-green-50 border-green-200' : (estaRetrasado ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100')} p-2 rounded-lg border">
+                        <div class="flex justify-between text-[10px] ${estado === 'PAGADO' ? 'text-green-700 font-bold' : (estaRetrasado ? 'text-red-700 font-bold' : 'text-gray-500 font-medium')}">
+                            <span>Estado de vencimiento</span>
+                            <span>${barraEstadoTexto}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div class="${estado === 'PAGADO' ? 'bg-green-500' : (estaRetrasado ? 'bg-red-600 animate-pulse' : 'bg-blue-500')} h-1.5 rounded-full transition-all duration-300" style="width: ${porcentajeTiempo}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span>Reunido: ${formatearMoneda(actual)}</span>
+                            <span class="text-gray-400">Meta: ${formatearMoneda(objetivo)}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div class="${colorBarraMeta} h-2 rounded-full transition-all duration-300" style="width: ${porcentajeMeta}%"></div>
+                        </div>
+                        <p class="text-[10px] text-right text-gray-500 font-medium">${porcentajeMeta}% de la meta</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100">
+                        <button onclick="abrirModalOpGF('${id}', 'ABONO', '${titulo}')" class="bg-green-50 hover:bg-green-100 text-green-700 font-semibold py-1 px-1 rounded text-xs transition text-center">+ Abonar</button>
+                        <button onclick="abrirModalOpGF('${id}', 'RETIRO', '${titulo}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold py-1 px-1 rounded text-xs transition text-center">- Retirar</button>
+                        <button onclick="abrirModalPagarGF('${id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-1 rounded text-xs transition text-center">Pagar</button>
+                    </div>
+                `;
+                contenedor.appendChild(card);
+            });
+        }
+
+        // --- RENDER PRÉSTAMOS (DOS COLUMNAS Y BORDES DE COLOR) ---
+        function renderizarPrestamos() {
+            let contenedorCobrar = document.getElementById('contenedorPorCobrar');
+            let contenedorPagar = document.getElementById('contenedorPorPagar');
+            let badgeCobrar = document.getElementById('badgeTotalCobrar');
+            let badgePagar = document.getElementById('badgeTotalPagar');
+            
+            contenedorCobrar.innerHTML = "";
+            contenedorPagar.innerHTML = "";
+            
+            let filas = datosGlobales.prestamos.slice(1);
+
+            if(filas.length === 0) {
+                contenedorCobrar.innerHTML = `<p class="text-gray-400 text-xs italic text-center py-4">No hay cuentas por cobrar.</p>`;
+                contenedorPagar.innerHTML = `<p class="text-gray-400 text-xs italic text-center py-4">No hay cuentas por pagar.</p>`;
+                badgeCobrar.innerText = formatearMoneda(0);
+                badgePagar.innerText = formatearMoneda(0);
+                return;
+            }
+
+            let totalCobrarSuma = 0;
+            let totalPagarSuma = 0;
+            let hayCobrar = false;
+            let hayPagar = false;
+
+            filas.forEach(fila => {
+                let id = fila[0], tipo = fila[1], nombre = fila[2], descripcion = fila[3], montoTotal = parseFloat(fila[4]) || 0, montoPagado = parseFloat(fila[5]) || 0, fecha = fila[6], fechaLimite = fila[7];
+                let esCobrar = tipo === "POR_COBRAR";
+                let pendiente = Math.max(0, montoTotal - montoPagado);
+                let porcentajeProgreso = montoTotal > 0 ? Math.min(Math.round((montoPagado / montoTotal) * 100), 100) : 0;
+
+                if (esCobrar) {
+                    totalCobrarSuma += pendiente;
+                    hayCobrar = true;
+                } else {
+                    totalPagarSuma += pendiente;
+                    hayPagar = true;
+                }
+
+                // Asignar borde de color distintivo (Verde para cobrar, Rojo/Ámbar para pagar)
+                let borderColor = esCobrar ? "border-green-400" : "border-red-400";
+                if(porcentajeProgreso === 100) borderColor = "border-gray-300";
+
+                let card = document.createElement('div');
+                card.className = `bg-white p-4 rounded-xl shadow-xs border-2 ${borderColor} flex flex-col justify-between space-y-3 transition-all`;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-gray-900 text-sm">${nombre}</h3>
+                                <p class="text-xs text-gray-600 italic uppercase mt-0.5">📝 ${descripcion || 'SIN DESCRIPCIÓN'}</p>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button onclick="abrirModalEditarPrestamo('${id}', '${tipo}', '${nombre}', '${descripcion}', ${montoTotal}, '${fechaLimite}')" class="text-gray-400 hover:text-blue-600 text-xs p-1" title="Editar">✏️</button>
+                                <button onclick="eliminarPrestamo('${id}', '${nombre}')" class="text-gray-400 hover:text-red-600 text-xs p-1" title="Eliminar">🗑️</button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">Fecha: ${formatearFecha(fecha)} ${fechaLimite ? ' | Límite: ' + formatearFecha(fechaLimite) : ''}</p>
+                    </div>
+
+                    <!-- Barra de Progreso -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span>Abonado: ${formatearMoneda(montoPagado)}</span>
+                            <span class="text-gray-400">Total: ${formatearMoneda(montoTotal)}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div class="${esCobrar ? 'bg-green-600' : 'bg-red-600'} h-2 rounded-full transition-all duration-300" style="width: ${porcentajeProgreso}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-medium">
+                            <span>Pendiente: <strong class="text-gray-800">${formatearMoneda(pendiente)}</strong></span>
+                            <span>${porcentajeProgreso}% liquidado</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                        <button onclick="abrirModalAbonarPrestamo('${id}', '${nombre}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-2 rounded text-xs transition text-center">+ Abonar</button>
+                        <button onclick="liquidarPrestamoTotal('${id}', '${tipo}', '${nombre}', ${pendiente})" class="${esCobrar ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white font-semibold py-1.5 px-2 rounded text-xs transition text-center">Liquidar Total</button>
+                    </div>
+                `;
+
+                if (esCobrar) {
+                    contenedorCobrar.appendChild(card);
+                } else {
+                    contenedorPagar.appendChild(card);
+                }
+            });
+
+            if (!hayCobrar) contenedorCobrar.innerHTML = `<p class="text-gray-400 text-xs italic text-center py-4">No hay cuentas por cobrar activas.</p>`;
+            if (!hayPagar) contenedorPagar.innerHTML = `<p class="text-gray-400 text-xs italic text-center py-4">No hay cuentas por pagar activas.</p>`;
+
+            badgeCobrar.innerText = formatearMoneda(totalCobrarSuma);
+            badgePagar.innerText = formatearMoneda(totalPagarSuma);
+        }
+
+        // --- MANEJO DE MODALES ---
+        function abrirModalTransaccion(tipo) {
+            document.getElementById('editTxId').value = "";
+            document.getElementById('txTipo').value = tipo;
+            document.getElementById('tituloModalTx').innerText = tipo === 'INGRESO' ? 'Registrar Ingreso' : 'Registrar Gasto Común';
+            document.getElementById('formTx').reset();
+            document.getElementById('txFecha').value = new Date().toISOString().split('T')[0];
+            document.getElementById('modalTransaccion').classList.remove('hidden');
+        }
+
+        function abrirModalEditarTransaccion(id, fecha, tipo, categoria, descripcion, monto, metodo) {
+            document.getElementById('editTxId').value = id;
+            document.getElementById('txTipo').value = tipo;
+            document.getElementById('tituloModalTx').innerText = `Editar ${tipo}`;
+            document.getElementById('txFecha').value = fecha;
+            document.getElementById('txCategoria').value = categoria;
+            document.getElementById('txDescripcion').value = descripcion;
+            document.getElementById('txMonto').value = monto;
+            document.getElementById('txMetodo').value = metodo || "EFECTIVO";
+            document.getElementById('modalTransaccion').classList.remove('hidden');
+        }
+
+        function abrirModalGastoFijo() {
+            document.getElementById('editGfId').value = "";
+            document.getElementById('tituloModalGF').innerText = "Nuevo Gasto Fijo / Obligación";
+            document.getElementById('formGastoFijo').reset();
+            document.getElementById('gfDia').value = "10";
+            document.getElementById('modalGastoFijo').classList.remove('hidden');
+        }
+
+        function abrirModalEditarGastoFijo(id, titulo, monto, diaPago) {
+            document.getElementById('editGfId').value = id;
+            document.getElementById('tituloModalGF').innerText = "Editar Gasto Fijo";
+            document.getElementById('gfTitulo').value = titulo;
+            document.getElementById('gfMonto').value = monto;
+            document.getElementById('gfDia').value = diaPago || 10;
+            document.getElementById('modalGastoFijo').classList.remove('hidden');
+        }
+
+        function abrirModalOpGF(id, accion, titulo) {
+            document.getElementById('opGFId').value = id;
+            document.getElementById('opGFAccion').value = accion;
+            document.getElementById('tituloOpGF').innerText = accion === 'ABONO' ? `Abonar a: ${titulo}` : `Retirar de: ${titulo}`;
+            document.getElementById('lblMontoOpGF').innerText = accion === 'ABONO' ? 'Monto a Abonar ($)' : 'Monto a Retirar ($)';
+            document.getElementById('opGFMonto').value = '';
+            document.getElementById('opGFNota').value = '';
+            document.getElementById('modalOperacionGF').classList.remove('hidden');
+        }
+
+        function abrirModalPagarGF(id) {
+            document.getElementById('pagarGfId').value = id;
+            document.getElementById('modalPagarGF').classList.remove('hidden');
+        }
+
+        function abrirModalPrestamo() {
+            document.getElementById('editPrestamoId').value = "";
+            document.getElementById('tituloModalPrestamo').innerText = "Nuevo Préstamo o Deuda";
+            document.getElementById('formPrestamo').reset();
+            document.getElementById('modalPrestamo').classList.remove('hidden');
+        }
+
+        function abrirModalEditarPrestamo(id, tipo, nombre, descripcion, montoTotal, fechaLimite) {
+            document.getElementById('editPrestamoId').value = id;
+            document.getElementById('tituloModalPrestamo').innerText = "Editar Préstamo";
+            document.getElementById('prTipo').value = tipo;
+            document.getElementById('prNombre').value = nombre;
+            document.getElementById('prDescripcion').value = descripcion;
+            document.getElementById('prMonto').value = montoTotal;
+            document.getElementById('prFechaLimite').value = fechaLimite || "";
+            document.getElementById('modalPrestamo').classList.remove('hidden');
+        }
+
+        function abrirModalAbonarPrestamo(id, nombre) {
+            document.getElementById('opPrestamoId').value = id;
+            document.getElementById('opPrestamoMonto').value = '';
+            document.getElementById('tituloOpPrestamo').innerText = `Abonar a: ${nombre}`;
+            document.getElementById('modalAbonarPrestamo').classList.remove('hidden');
+        }
+
+        function cerrarModales() {
+            document.querySelectorAll('.fixed').forEach(el => el.classList.add('hidden'));
+        }
+
+        // --- ACCIONES POST ---
+        function enviarTransaccion(e) {
+            e.preventDefault();
+            let editId = document.getElementById('editTxId').value;
+            let actionName = editId ? "editarTransaccion" : "agregarTransaccion";
+
+            ejecutarFetch({
+                action: actionName,
+                id: editId,
+                tipo: document.getElementById('txTipo').value,
+                fecha: document.getElementById('txFecha').value,
+                categoria: document.getElementById('txCategoria').value,
+                descripcion: document.getElementById('txDescripcion').value,
+                monto: document.getElementById('txMonto').value,
+                metodoPago: document.getElementById('txMetodo').value
+            }, () => {
+                document.getElementById('formTx').reset();
+                document.getElementById('txFecha').value = new Date().toISOString().split('T')[0];
+            });
+        }
+
+        function guardarGastoFijo(e) {
+            e.preventDefault();
+            let editId = document.getElementById('editGfId').value;
+            let actionName = editId ? "editarGastoFijo" : "guardarGastoFijo";
+            
+            ejecutarFetch({
+                action: actionName,
+                id: editId,
+                titulo: document.getElementById('gfTitulo').value,
+                montoObjetivo: document.getElementById('gfMonto').value,
+                diaPago: document.getElementById('gfDia').value
+            }, () => {
+                document.getElementById('formGastoFijo').reset();
+            });
+        }
+
+        function ejecutarOperacionGF(e) {
+            e.preventDefault();
+            ejecutarFetch({
+                action: "actualizarGastoFijo",
+                id: document.getElementById('opGFId').value,
+                accion: document.getElementById('opGFAccion').value,
+                monto: document.getElementById('opGFMonto').value,
+                nota: document.getElementById('opGFNota').value
+            });
+        }
+
+        function ejecutarPagoTotalGF(e) {
+            e.preventDefault();
+            let id = document.getElementById('pagarGfId').value;
+            let metodo = document.getElementById('pagarGfMetodo').value;
+            
+            ejecutarFetch({
+                action: "actualizarGastoFijo",
+                id: id,
+                accion: "PAGO_TOTAL",
+                monto: 0,
+                nota: "PAGO TOTAL",
+                metodoPago: metodo
+            });
+        }
+
+        function eliminarGastoFijo(id, titulo) {
+            if(!confirm(`¿Estás seguro de eliminar el gasto fijo "${titulo}"?`)) return;
+            ejecutarFetch({ action: "eliminarGastoFijo", id: id });
+        }
+
+        function guardarPrestamo(e) {
+            e.preventDefault();
+            let editId = document.getElementById('editPrestamoId').value;
+            let actionName = editId ? "editarPrestamo" : "guardarPrestamo";
+
+            ejecutarFetch({
+                action: actionName,
+                id: editId,
+                tipo: document.getElementById('prTipo').value,
+                nombre: document.getElementById('prNombre').value,
+                descripcion: document.getElementById('prDescripcion').value,
+                montoTotal: document.getElementById('prMonto').value,
+                fechaLimite: document.getElementById('prFechaLimite').value
+            }, () => {
+                document.getElementById('formPrestamo').reset();
+            });
+        }
+
+        function ejecutarAbonoPrestamo(e) {
+            e.preventDefault();
+            ejecutarFetch({
+                action: "actualizarPrestamo",
+                id: document.getElementById('opPrestamoId').value,
+                accion: "ABONO",
+                monto: document.getElementById('opPrestamoMonto').value
+            });
+        }
+
+        function liquidarPrestamoTotal(id, tipo, nombre, pendiente) {
+            if(!confirm(`⚠️ ¿Estás seguro de liquidar totalmente el préstamo con ${nombre}?\n\nEsto registrará automáticamente el ${tipo === 'POR_COBRAR' ? 'INGRESO' : 'GASTO'} en tu caja general por un monto de ${formatearMoneda(pendiente)} y eliminará el préstamo de la lista.`)) return;
+            
+            ejecutarFetch({
+                action: "actualizarPrestamo",
+                id: id,
+                accion: "LIQUIDAR_TOTAL",
+                monto: 0
+            });
+        }
+
+        function eliminarPrestamo(id, nombre) {
+            if(!confirm(`¿Estás seguro de eliminar el registro de préstamo de "${nombre}" sin registrar movimientos?`)) return;
+            ejecutarFetch({ action: "eliminarPrestamo", id: id });
+        }
+
+        function ejecutarFetch(data, callbackExito) {
+            document.getElementById('loading').classList.remove('hidden');
+            cerrarModales();
+
+            fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.status === "success") {
+                    if(callbackExito) callbackExito();
+                    cargarDatos();
+                } else {
+                    alert("Error: " + res.message);
+                    document.getElementById('loading').classList.add('hidden');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de red al procesar la solicitud.");
+                document.getElementById('loading').classList.add('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
